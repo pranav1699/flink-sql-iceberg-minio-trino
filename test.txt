@@ -8,8 +8,9 @@ CREATE TABLE t1(
 PARTITIONED BY (`partition`)
 WITH (
   'connector' = 'hudi',
-  'path' = 'file:///tmp/iceberg/warehouse',
-  'table.type' = 'MERGE_ON_READ' 
+  'path' = 'file:///tmp/hudi',
+  'table.type' = 'MERGE_ON_READ',
+  'write.operation' = 'upsert'
 );
 
 
@@ -19,7 +20,7 @@ CREATE TABLE orders (
     buyer        STRING
 ) WITH (
   'connector' = 'datagen',
-  'rows-per-second' = '1000'
+  'rows-per-second' = '1'
 );
 
 
@@ -104,10 +105,10 @@ CREATE TABLE iceberg_table_orders WITH (
 )LIKE orders (EXCLUDING OPTIONS);
 
 
-set 's3a.endpoint'= 'http://minio:9000';
-set 's3a.access-key'= 'minio';
-set 's3a.secret-key'= 'minio123';
-set 's3a.path.style.access'= 'true';
+set 's3.endpoint'= 'http://minio:9000';
+set 's3.access-key'= 'minio';
+set 's3.secret-key'= 'minio123';
+set 's3.path.style.access'= 'true';
 
 
 
@@ -153,7 +154,154 @@ CREATE CATALOG iceberg_nessie WITH (
         'warehouse'='file:///tmp/iceberg/warehouse') ;
 		
 		
+create table customers_iceberg_s3
+with ('connector'='iceberg',
+'catalog-name'='iceberg_catalog',
+'catalog-type'='hive',
+'uri'='thrift://hive-metastore:9083',
+'clients'='5',
+'property-version'='2',
+'warehouse'='s3a://flink/iceberg/')LIKE customers_source (EXCLUDING OPTIONS);
 		
-		
+CREATE TABLE flink_table (
+    id   BIGINT,
+    data STRING
+) WITH (
+    'connector'='iceberg',
+    'catalog-name'='hive_prod',
+    'uri'='thrift://hive-metastore:9083',
+    'warehouse'='s3a://flink/iceberg/'
+);
+
+
 create table iceberg_nessie.default_database.orders_iceberg_upsert with ('format-version'='2', 'write.upsert.enabled'='true') LIKE orders (EXCLUDING OPTIONS);
 
+create table t2_minio(id int PRIMARY KEY, name varchar(50)) 
+with (
+'connector'='iceberg',
+'catalog-name'='iceberg_catalog',
+'catalog-type'='hadoop', 
+'warehouse'='s3a://flink/t2', 
+'hadoop.fs.s3a.endpoint' = 'http://127.0.0.1:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true');
+
+
+create table t2_minio(id int PRIMARY KEY, name varchar(50)) 
+with (
+'connector'='iceberg',
+'catalog-name'='iceberg_catalog',
+'catalog-type'='hadoop', 
+'warehouse'='s3a://flink/t2', 
+'hadoop.fs.s3a.endpoint' = 'http://host.docker.internal:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true');
+
+create table t2_minio(id int PRIMARY KEY, name varchar(50)) 
+with (
+'connector'='iceberg',
+'catalog-name'='iceberg_catalog',
+'catalog-type'='hadoop', 
+'warehouse'='s3a://flink/t2'
+);
+
+
+create table t2_minio(id int PRIMARY KEY, name varchar(50)) 
+with (
+'connector'='filesystem',
+'type'='iceberg'
+'warehouse'='s3a://flink/t2'
+);
+
+
+
+
+
+CREATE TABLE customers_hudi
+WITH (
+  'connector' = 'hudi',
+  'path' = 'file:///tmp/hudi',
+  'table.type' = 'MERGE_ON_READ',
+  'write.operation' = 'upsert'
+)LIKE customers_source (EXCLUDING OPTIONS);
+
+
+
+create table t2_minio(id int PRIMARY KEY, name varchar(50)) 
+with 
+('connector' = 'hudi', 
+'table.type' = 'MERGE_ON_READ', 
+'path' = 's3a://flink/t2', 
+'hadoop.fs.s3a.endpoint' = 'http://host.docker.internal:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true');
+
+create table orders_hudi
+with 
+('connector' = 'hudi', 
+'table.type' = 'MERGE_ON_READ', 
+'path' = 's3a://flink/orders_hudi', 
+'hadoop.fs.s3a.endpoint' = 'http://host.docker.internal:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true')LIKE orders (EXCLUDING OPTIONS);
+
+
+create table customers_iceberg
+with (
+'connector'='iceberg',
+'catalog-name'='iceberg_catalog',
+'catalog-type'='hadoop', 
+'warehouse'='s3a://flink/t2', 
+'format-version'='2',
+'write.upsert.enabled'='true',
+'hadoop.fs.s3a.endpoint' = 'http://host.docker.internal:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true')LIKE customers_source (EXCLUDING OPTIONS);
+
+
+
+create table customers_iceberg
+with (
+'connector'='iceberg',
+'catalog-type'='hive',
+'catalog-name'='iceberg_catalog',
+'uri'='thrift://host.docker.internal:9083',  
+'warehouse'='s3a://flink/table_iceberg', 
+'format-version'='2',
+'write.upsert.enabled'='true',
+'hadoop.fs.s3a.endpoint' = 'http://host.docker.internal:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true')LIKE customers_source (EXCLUDING OPTIONS);
+
+create table customers_hudi
+with 
+('connector' = 'hudi', 
+'table.type' = 'MERGE_ON_READ', 
+'path' = 's3a://flink/hudi_tables', 
+'hive_sync.enable' = 'true',     
+'hive_sync.mode' = 'hms',        
+'hive_sync.metastore.uris' = 'thrift://host.docker.internal:9083' ,
+'hadoop.fs.s3a.endpoint' = 'http://host.docker.internal:9000' , 
+'hadoop.fs.s3a.access.key' = 'minio' , 
+'hadoop.fs.s3a.secret.key' = 'minio123', 
+'hadoop.fs.s3a.connection.timeout' = '600000', 
+'hadoop.fs.s3a.impl' = 'org.apache.hadoop.fs.s3a.S3AFileSystem', 
+'hadoop.fs.s3a.path.style.access' = 'true')LIKE customers_source (EXCLUDING OPTIONS);
