@@ -1,0 +1,97 @@
+version: "2.2"
+services:
+  jobmanager:
+    build: ./
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager 
+    volumes:
+      - ./data:/tmp/hudi/
+      - /hive-site.xml:/opt/flink/hive/hive-site.xml
+
+      
+  taskmanager:
+    build: ./
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 20  
+      - ./data:/tmp/hudi
+      - /hive-site.xml:/opt/flink/hive/hive-site.xml
+
+
+  sql-client:
+    build: ./
+    command: bin/sql-client.sh
+    depends_on:
+      - jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.address: jobmanager  
+    volumes:
+      - ./data:/tmp/hudi
+      - ./hive-site.xml:/opt/flink/hive/hive-site.xml
+
+  trino-coordinator:
+    image: 'trinodb/trino:latest'
+    hostname: trino-coordinator
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./etc:/etc/trino
+    
+
+
+  mariadb:
+      image: 'mariadb:latest'
+      hostname: mariadb
+      ports:
+        - '3306:3306'
+      environment:
+        MYSQL_ROOT_PASSWORD: admin
+        MYSQL_USER: admin
+        MYSQL_PASSWORD: admin
+        MYSQL_DATABASE: metastore_db
+
+
+  hive-metastore:
+    hostname: hive-metastore
+    image: 'bitsondatadev/hive-metastore:latest'
+    ports:
+      - '9083:9083' # Metastore Thrift
+    volumes:
+      - ./conf/metastore-site.xml:/opt/apache-hive-metastore-3.0.0-bin/conf/metastore-site.xml:ro
+    environment:
+      METASTORE_DB_HOSTNAME: mariadb
+    depends_on:
+      - mariadb
+
+  
+
+  minio:
+    hostname: minio
+    image: 'minio/minio:latest'
+    container_name: minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./data:/data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: minio server --console-address ":9001" /data
+
+
+

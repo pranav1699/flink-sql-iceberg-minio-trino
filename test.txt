@@ -1,0 +1,159 @@
+CREATE TABLE t1(
+  uuid VARCHAR(20) PRIMARY KEY NOT ENFORCED,
+  name VARCHAR(10),
+  age INT,
+  ts TIMESTAMP(3),
+  `partition` VARCHAR(20)
+)
+PARTITIONED BY (`partition`)
+WITH (
+  'connector' = 'hudi',
+  'path' = 'file:///tmp/iceberg/warehouse',
+  'table.type' = 'MERGE_ON_READ' 
+);
+
+
+CREATE TABLE orders (
+    order_number INT PRIMARY KEY NOT ENFORCED,
+    price        INT,
+    buyer        STRING
+) WITH (
+  'connector' = 'datagen',
+  'rows-per-second' = '1000'
+);
+
+
+CREATE TABLE orders_hudi
+WITH (
+  'connector' = 'hudi',
+  'path' = 'file:///tmp/orders',
+  'table.type' = 'MERGE_ON_READ',
+  'read.streaming.enabled' = 'true',
+  'read.start-commit' = '20210316134557', 
+  'read.streaming.check-interval' = '4' ,
+  'changelog.enabled' = 'true',
+  'compaction.async.enabled' = 'false'
+)LIKE orders (EXCLUDING OPTIONS);
+
+
+CREATE TABLE orders_hudi
+WITH (
+  'connector'='iceberg',
+    'catalog-name'='iceberg_catalog',
+    'catalog-type'='hadoop',  
+    'warehouse'='s3a://logging/',
+	's3a.endpoint' = 'http://minio:9000',
+	's3a.access-key' = 'minio',
+    's3a.secret-key' = 'minio123',
+	's3.path.style.access'= 'true'
+    'format-version'='2'
+)LIKE orders (EXCLUDING OPTIONS);
+
+CREATE TABLE orders_hudi
+WITH (
+  'connector'='iceberg',
+    'catalog-name'='iceberg_catalog',
+    'catalog-type'='hadoop',  
+    'warehouse'='s3a://logging/',
+    'format-version'='2'
+)LIKE orders (EXCLUDING OPTIONS) ;
+
+
+CREATE TABLE orders_iceberg
+WITH (
+  'connector'='iceberg',
+    'catalog-name'='iceberg_catalog',
+    'catalog-type'='hadoop',  
+    'warehouse'='file:///tmp/iceberg/warehouse',
+    'format-version'='2'
+)LIKE orders (EXCLUDING OPTIONS);
+
+
+CREATE TABLE customers_iceberg
+WITH (
+  'connector'='iceberg',
+    'catalog-name'='iceberg_catalog',
+    'catalog-type'='hadoop',  
+    'warehouse'='file:///tmp/iceberg/warehouse',
+    'format-version'='2',
+	'write.upsert.enabled'='true'
+)LIKE customers_source (EXCLUDING OPTIONS);
+
+
+CREATE TABLE fs_table(
+    order_number INT PRIMARY KEY NOT ENFORCED,
+    price        INT,
+    buyer        STRING
+)
+WITH (
+  'connector'='filesystem',
+  'path'='file:///tmp/iceberg/warehouse',
+  'format'='parquet',
+  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.policy.kind'='success-file'
+)LIKE orders (EXCLUDING OPTIONS);
+
+
+
+
+CREATE TABLE iceberg_table_orders WITH (
+
+  'format' = 'iceberg',
+  'path' = 's3a://flink/'
+
+)LIKE orders (EXCLUDING OPTIONS);
+
+
+set 's3a.endpoint'= 'http://minio:9000';
+set 's3a.access-key'= 'minio';
+set 's3a.secret-key'= 'minio123';
+set 's3a.path.style.access'= 'true';
+
+
+
+
+CREATE TABLE orders_iceberg WITH (
+    'connector' = 'iceberg',
+    's3.endpoint' = 'http://minio:9000',
+	'catalog-name'='iceberg_catalog',
+	'catalog-type'='hive',
+	'uri'='thrift://hive-metastore:9083',
+    's3.access-key' = 'minio',
+    's3.secret-key' = 'minio123',
+    'path' = 's3a://logging/orders-383fbda49b5e4dd4ba92480a3cbd0671'
+)LIKE orders (EXCLUDING OPTIONS);
+
+
+
+CREATE TABLE orders_iceberg
+WITH (
+  'connector'='iceberg',
+    'catalog-name'='iceberg_catalog',
+    'catalog-type'='hadoop',  
+    'warehouse'='hdfs://namenode:9870/iceberg',
+    'format-version'='2'
+)LIKE orders (EXCLUDING OPTIONS);
+
+
+CREATE TABLE customers_iceberg
+WITH (
+  'connector'='iceberg',
+    'catalog-name'='iceberg_catalog',
+    'catalog-type'='hadoop',  
+    'warehouse'='hdfs://namenode:9870/iceberg',
+    'format-version'='2'
+)LIKE customers_source (EXCLUDING OPTIONS);
+
+
+CREATE CATALOG iceberg_nessie WITH (
+        'type'='iceberg',
+        'catalog-impl'='org.apache.iceberg.nessie.NessieCatalog',
+        'uri'='http://192.168.1.6:19120/api/v1',
+        'ref'='main',
+        'warehouse'='file:///tmp/iceberg/warehouse') ;
+		
+		
+		
+		
+create table iceberg_nessie.default_database.orders_iceberg_upsert with ('format-version'='2', 'write.upsert.enabled'='true') LIKE orders (EXCLUDING OPTIONS);
+
